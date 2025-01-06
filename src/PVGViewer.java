@@ -38,7 +38,7 @@ public class PVGViewer extends JFrame {
     private JLabel coordinatesLabel; // Label для отображения координат
 
     public PVGViewer() {
-        setTitle("PVG Viewer");
+        setTitle("PVG Viewer 1.0101");
         setSize(800, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         try {
