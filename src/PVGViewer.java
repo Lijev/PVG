@@ -14,6 +14,9 @@ import java.util.Objects;
 import java.awt.Cursor;
 import java.net.URL;
 
+import java.awt.datatransfer.DataFlavor;
+import java.awt.dnd.*;
+
 public class PVGViewer extends JFrame {
     private int SizeX = 10;
     private int SizeY = 10;
@@ -144,6 +147,30 @@ public class PVGViewer extends JFrame {
         add(topPanel,BorderLayout.NORTH); // Добавляем верхнюю панель
 
         updateLayerLabel();
+
+
+        // Поддержка Drag and Drop
+        setDropTarget(new DropTarget(this, new DropTargetAdapter() {
+            @Override
+            public void drop(DropTargetDropEvent dtde) {
+                dtde.acceptDrop(DnDConstants.ACTION_COPY);
+                java.util.List<File> droppedFiles;
+                try {
+                    droppedFiles = (java.util.List<File>) dtde.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
+                    if (droppedFiles != null && !droppedFiles.isEmpty()) {
+                        File file = droppedFiles.get(0);
+                        if (file.getName().toLowerCase().endsWith(".pvg")) {
+                            loadPvgFile(file);
+                        }else{
+                            JOptionPane.showMessageDialog(PVGViewer.this,"Error: Invalid file format. Use .pvg file.", "Error",JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(PVGViewer.this,"Error: Cannot load file...", "Error",JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }));
     }
     private void togglePipette(){
         pipetteMode = !pipetteMode;
@@ -331,7 +358,35 @@ public class PVGViewer extends JFrame {
             coordinatesLabel.setText("X: -, Y: -, Z: -");
         }
     }
+    private void loadPvgFile(File file) {
+        try {
+            byte[] fileBytes = Files.readAllBytes(file.toPath());
+            ByteBuffer buffer = ByteBuffer.wrap(fileBytes);
+            SizeX = buffer.getInt();
+            SizeY = buffer.getInt();
+            SizeZ = buffer.getInt();
 
+            voxels = new int[SizeX][SizeY][SizeZ];
+            for (int x = 0; x < SizeX; x++) {
+                for (int y = 0; y < SizeY; y++) {
+                    for (int z = 0; z < SizeZ; z++) {
+                        voxels[x][y][z] = buffer.getInt();
+                    }
+                }
+            }
+            currentlayer = SizeZ/2;
+            layerSlider.setMaximum(SizeZ-1);
+            layerSlider.setValue(currentlayer);
+            updateLayerLabel();
+            updateCanvasSize();
+            canvas.repaint();
+
+            JOptionPane.showMessageDialog(this,"File has been loaded!");
+        } catch (IOException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,"Error loading file...", "Error",JOptionPane.ERROR_MESSAGE);
+        }
+    }
     private void loadPvg() {
         JFileChooser fileChooser = new JFileChooser();
         FileNameExtensionFilter filter = new FileNameExtensionFilter("PVG files", "pvg");
@@ -339,33 +394,7 @@ public class PVGViewer extends JFrame {
         int returnVal = fileChooser.showOpenDialog(this);
         if (returnVal == JFileChooser.APPROVE_OPTION) {
             File file = fileChooser.getSelectedFile();
-            try {
-                byte[] fileBytes = Files.readAllBytes(file.toPath());
-                ByteBuffer buffer = ByteBuffer.wrap(fileBytes);
-                SizeX = buffer.getInt();
-                SizeY = buffer.getInt();
-                SizeZ = buffer.getInt();
-
-                voxels = new int[SizeX][SizeY][SizeZ];
-                for (int x = 0; x < SizeX; x++) {
-                    for (int y = 0; y < SizeY; y++) {
-                        for (int z = 0; z < SizeZ; z++) {
-                            voxels[x][y][z] = buffer.getInt();
-                        }
-                    }
-                }
-                currentlayer = SizeZ/2;
-                layerSlider.setMaximum(SizeZ-1);
-                layerSlider.setValue(currentlayer);
-                updateLayerLabel();
-                updateCanvasSize();
-                canvas.repaint();
-
-                JOptionPane.showMessageDialog(this,"File has been loaded!");
-            } catch (IOException e) {
-                e.printStackTrace();
-                JOptionPane.showMessageDialog(this,"Error loading file...", "Error",JOptionPane.ERROR_MESSAGE);
-            }
+            loadPvgFile(file);
         }
 
     }
@@ -405,6 +434,14 @@ public class PVGViewer extends JFrame {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             PVGViewer viewer = new PVGViewer();
+            if (args.length > 0) {
+                File file = new File(args[0]);
+                if (file.exists() && file.getName().toLowerCase().endsWith(".pvg")) {
+                    viewer.loadPvgFile(file);
+                }else {
+                    JOptionPane.showMessageDialog(viewer,"Error: Invalid file format. Use .pvg file.", "Error",JOptionPane.ERROR_MESSAGE);
+                }
+            }
             viewer.setVisible(true);
         });
     }
