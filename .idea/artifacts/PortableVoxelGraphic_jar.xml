@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact build-on-make="true" name="PortableVoxelGraphic:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/PortableVoxelGraphic_jar</output-path>
+    <root id="root">
+      <element id="archive" name="PortableVoxelGraphic.jar">
+        <element id="module-output" name="PortableVoxelGraphic" />
+      </element>
+    </root>
+  </artifact>
+</component>

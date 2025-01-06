@@ -29,13 +29,16 @@ public class PVGViewer extends JFrame {
     private JPanel canvas;
     private JSlider layerSlider;
     private JLabel layerLabel;
+    private JButton newFileButton;
+    private JButton loadButton;
+    private JScrollPane scrollPane;
+    private JLabel coordinatesLabel; // Label для отображения координат
 
     public PVGViewer() {
         setTitle("PVG Viewer");
-        setSize(500, 550); // Увеличиваем высоту окна
+        setSize(500, 550);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         try {
-            // Загрузка иконки из ресурсов
             URL iconURL = getClass().getClassLoader().getResource("icon.png");
             if (iconURL != null) {
                 BufferedImage icon = ImageIO.read(iconURL);
@@ -48,7 +51,6 @@ public class PVGViewer extends JFrame {
             JOptionPane.showMessageDialog(this, "Error loading icon!", "Error", JOptionPane.ERROR_MESSAGE);
         }
 
-
         voxels = new int[SizeX][SizeY][SizeZ];
 
         canvas = new JPanel() {
@@ -58,7 +60,6 @@ public class PVGViewer extends JFrame {
                 drawSlice(g);
             }
         };
-        canvas.setPreferredSize(new Dimension(400, 400));
         canvas.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -86,8 +87,10 @@ public class PVGViewer extends JFrame {
             public void mouseMoved(MouseEvent e) {
                 lastMouseX = e.getX();
                 lastMouseY = e.getY();
+                updateCoordinatesLabel(); // Обновляем label координат при движении мыши
             }
         });
+
 
         layerSlider = new JSlider(0, SizeZ - 1, currentlayer);
         layerSlider.addChangeListener(e -> {
@@ -103,8 +106,11 @@ public class PVGViewer extends JFrame {
         JButton saveButton = new JButton("Save");
         saveButton.addActionListener(e -> savePvg());
 
-        JButton loadButton = new JButton("Load");
-        loadButton.addActionListener(e-> loadPvg());
+        loadButton = new JButton("Load");
+        loadButton.addActionListener(e -> loadPvg());
+
+        newFileButton = new JButton("New File");
+        newFileButton.addActionListener(e -> createNewFile());
 
         JButton pipetteButton = new JButton("Pipette");
         pipetteButton.addActionListener(e-> togglePipette());
@@ -114,22 +120,30 @@ public class PVGViewer extends JFrame {
 
 
         JPanel controls = new JPanel();
+        controls.add(newFileButton);
+        controls.add(loadButton);
         controls.add(colorButton);
         controls.add(saveButton);
-        controls.add(loadButton);
         controls.add(pipetteButton);
         controls.add(rotationButton);
-
-
 
         JPanel sliderPanel = new JPanel(new BorderLayout());
         sliderPanel.add(layerSlider, BorderLayout.CENTER);
         sliderPanel.add(layerLabel, BorderLayout.EAST);
 
-        add(canvas, BorderLayout.CENTER);
-        add(sliderPanel, BorderLayout.SOUTH); // Добавляем панель со слайдером и текстом
-        add(controls, BorderLayout.NORTH);
-        updateLayerLabel(); // Устанавливаем начальное значение текста ползунка
+        coordinatesLabel = new JLabel("X: -, Y: -, Z: -"); // Инициализация label
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(coordinatesLabel, BorderLayout.WEST); // Координаты слева
+        topPanel.add(controls, BorderLayout.EAST); // Кнопки справа
+
+
+
+        scrollPane = new JScrollPane(canvas);
+        add(scrollPane, BorderLayout.CENTER);
+        add(sliderPanel, BorderLayout.SOUTH);
+        add(topPanel,BorderLayout.NORTH); // Добавляем верхнюю панель
+
+        updateLayerLabel();
     }
     private void togglePipette(){
         pipetteMode = !pipetteMode;
@@ -148,7 +162,7 @@ public class PVGViewer extends JFrame {
             int currentZ = currentlayer;
             if(rotationMode == 2){
                 currentY = currentlayer;
-                currentZ = y/40; // Исправлено
+                currentZ = y/40;
             }else if(rotationMode == 3){
                 currentX = currentlayer;
                 currentZ = x/40;
@@ -158,7 +172,45 @@ public class PVGViewer extends JFrame {
             canvas.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
         }
     }
+    private void createNewFile() {
+        int sizeX, sizeY, sizeZ;
 
+        try {
+            String input = JOptionPane.showInputDialog(this, "Enter dimensions (X Y Z):");
+            if (input == null || input.isEmpty()) return;
+
+            String[] parts = input.split(" ");
+            sizeX = Integer.parseInt(parts[0]);
+            sizeY = Integer.parseInt(parts[1]);
+            sizeZ = Integer.parseInt(parts[2]);
+
+
+            if (sizeX <= 0 || sizeY <= 0 || sizeZ <= 0) {
+                JOptionPane.showMessageDialog(this, "Invalid dimensions. Dimensions must be positive integers.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            SizeX = sizeX;
+            SizeY = sizeY;
+            SizeZ = sizeZ;
+            voxels = new int[SizeX][SizeY][SizeZ];
+            currentlayer = sizeZ / 2;
+            layerSlider.setMaximum(sizeZ - 1);
+            layerSlider.setValue(currentlayer);
+            updateLayerLabel();
+            updateCanvasSize();
+            canvas.repaint();
+            updateCoordinatesLabel(); // Обновляем координаты при создании файла
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Invalid input. Please enter integers.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    private void updateCanvasSize() {
+        int widthDimension = getWidthDimension();
+        int heightDimension = getHeightDimension();
+        canvas.setPreferredSize(new Dimension(widthDimension * 40, heightDimension * 40));
+        scrollPane.revalidate();
+    }
 
     private void rotateMode() {
         rotationMode = (rotationMode % 3) + 1;
@@ -169,7 +221,9 @@ public class PVGViewer extends JFrame {
         }else{
             JOptionPane.showMessageDialog(this, "Rotation Mode: ZY-X");
         }
-
+        updateCanvasSize();
+        canvas.repaint();
+        updateCoordinatesLabel();
     }
     private void updateLayerLabel() {
         layerLabel.setText("Layer: " + currentlayer);
@@ -213,7 +267,7 @@ public class PVGViewer extends JFrame {
             int currentZ = currentlayer;
             if(rotationMode == 2){
                 currentY = currentlayer;
-                currentZ = y/40; // Исправлено
+                currentZ = y/40;
             }else if(rotationMode == 3){
                 currentX = currentlayer;
                 currentZ = x/40;
@@ -258,6 +312,25 @@ public class PVGViewer extends JFrame {
         }
         return heightDimension;
     }
+    private void updateCoordinatesLabel() {
+        int voxelX = getVoxelX(lastMouseX);
+        int voxelY = getVoxelY(lastMouseY);
+        int currentX = voxelX;
+        int currentY = voxelY;
+        int currentZ = currentlayer;
+        if (voxelX >= 0 && voxelX < getWidthDimension() && voxelY >= 0 && voxelY < getHeightDimension()) {
+            if(rotationMode == 2){
+                currentY = currentlayer;
+                currentZ = lastMouseY/40;
+            }else if(rotationMode == 3){
+                currentX = currentlayer;
+                currentZ = lastMouseX/40;
+            }
+            coordinatesLabel.setText("X: " + currentX + ", Y: " + currentY + ", Z: " + currentZ);
+        } else {
+            coordinatesLabel.setText("X: -, Y: -, Z: -");
+        }
+    }
 
     private void loadPvg() {
         JFileChooser fileChooser = new JFileChooser();
@@ -285,6 +358,7 @@ public class PVGViewer extends JFrame {
                 layerSlider.setMaximum(SizeZ-1);
                 layerSlider.setValue(currentlayer);
                 updateLayerLabel();
+                updateCanvasSize();
                 canvas.repaint();
 
                 JOptionPane.showMessageDialog(this,"File has been loaded!");
