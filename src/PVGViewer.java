@@ -36,7 +36,7 @@ public class PVGViewer extends JFrame {
 
     public PVGViewer() {
         setTitle("PVG Viewer");
-        setSize(500, 550);
+        setSize(800, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         try {
             URL iconURL = getClass().getClassLoader().getResource("icon.png");
